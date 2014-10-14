@@ -1,0 +1,40 @@
+#!/bin/bash
+
+if [ $# -lt 3 ] ; then
+    cat << EOF
+NAME:
+  modify_nasm   ----  反汇编hookFs.o 修整格式并生成合适的nasm文件
+
+SYNOPSIS:
+  modify_nasm -f o_file -p proxy_file -o output_file   
+
+OPTIONS:
+    -f    ------   the path of hookFs.o file
+    -o    ------   the file name of the output_file
+    -p    ------   the path of the proxy nasm file
+
+EXAMPLE
+    modify_nasm -f ./hook_src -o hookFs.nasm -p ./proxy.nasm
+EOF
+    exit 0
+fi
+
+while getopts ":f:o:p:" opt;
+do 
+   case $opt in 
+      f )  o_file=$OPTARG ;;
+      o ) out_file=$OPTARG ;;
+      p ) proxy_file=$OPTARG ;;
+      ? ) echo "error"
+          exit 1;;
+
+  esac
+done
+
+objdump -d -Mintel $o_file > /tmp/hookFs0.nasm
+
+sed 's/0000.... <//g' /tmp/hookFs0.nasm | sed 's/>:/:/g' | sed 's/[0-9a-f]*:.\{22,22\}//g' | sed 's/<.*>//g' | sed 's\ PTR \\g'| sed 's/call /&0x/g' | sed 's/0x\s\s/  0x/g' | sed 's/je   /&0x/g' | sed 's/0x\s\s/  0x/g' | sed 's/jne  /&0x/g' | sed 's/0x\s\s/  0x/g' | sed 's/jmp  /&0x/g' | sed 's/0x\s\s/  0x/g' | sed 's/\+eiz\*1//g' | sed '/ds/d' > /tmp/test2.nasm
+
+cat $proxy_file /tmp/test2.nasm > $out_file
+
+rm /tmp/hookFs0.nasm /tmp/test2.nasm
